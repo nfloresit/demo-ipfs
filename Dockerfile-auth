@@ -1,0 +1,9 @@
+FROM python:3.7-slim
+
+WORKDIR /app
+
+COPY auth_server.py . 
+COPY jwt_secret.key . 
+RUN pip install flask pyjwt
+
+CMD ["python", "auth_server.py"]

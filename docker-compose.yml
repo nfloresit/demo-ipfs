@@ -1,0 +1,77 @@
+
+networks:
+  ipfs_network:
+    driver: bridge
+
+services:
+  ipfs_node1:
+    image: ipfs/kubo:latest
+    container_name: ipfs_node1
+    restart: unless-stopped
+    networks:
+      - ipfs_network
+    volumes:
+      - ./ipfs_data/node1:/data/ipfs
+    ports:
+      - "4001:4001"
+      - "8080:8080"
+      - "5001:5001"
+
+  ipfs_node2:
+    image: ipfs/kubo:latest
+    container_name: ipfs_node2
+    restart: unless-stopped
+    networks:
+      - ipfs_network
+    volumes:
+      - ./ipfs_data/node2:/data/ipfs
+    ports:
+      - "4002:4001"
+      - "8081:8080"
+      - "5002:5001"
+
+  ipfs_node3:
+    image: ipfs/kubo:latest
+    container_name: ipfs_node3
+    restart: unless-stopped
+    networks:
+      - ipfs_network
+    volumes:
+      - ./ipfs_data/node3:/data/ipfs
+    ports:
+      - "4003:4001"
+      - "8082:8080"
+      - "5003:5001"
+
+  nginx:
+    image: nginx:latest
+    container_name: ipfs_nginx
+    restart: unless-stopped
+    depends_on:
+      - ipfs_node1
+      - ipfs_node2
+      - ipfs_node3
+      - auth_service
+    networks:
+      - ipfs_network
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./certs:/etc/nginx/certs
+      - ./auth:/etc/nginx/auth
+  auth_service:
+    build:
+      context: .
+      dockerfile: Dockerfile-auth
+    container_name: auth_service
+    restart: unless-stopped
+    environment:
+      - SECRET_KEY_FILE=/app/jwt_secret.key
+    volumes:
+      - ./jwt_secret.key:/app/jwt_secret.key:ro
+    ports:
+      - "5000:5000"
+    networks:
+      - ipfs_network
