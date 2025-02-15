@@ -1,6 +1,9 @@
 networks:
   ipfs_network:
     driver: bridge
+    internal: true # Solo permite trafico interno de la red.
+  external_network:
+    driver: bridge
 
 services:
   ipfs_node1:
@@ -50,6 +53,7 @@ services:
       - auth_service
     networks:
       - ipfs_network
+      - external_network
     ports:
       - "80:80"
       - "443:443"
