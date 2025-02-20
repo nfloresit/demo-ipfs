@@ -1,61 +1,107 @@
-networks:
-  ipfs_network:
-    driver: bridge
-    internal: true # Solo permite trafico interno de la red.
-  external_network:
-    driver: bridge
-
 services:
-  ipfs_node1:
-    image: ipfs/kubo:latest
-    container_name: ipfs_node1
-    restart: unless-stopped
-    networks:
-      - ipfs_network
-    volumes:
-      - ./ipfs_data/node1:/data/ipfs
-    environment:
-      - IPFS_PROFILE=server
-    command: [ "daemon", "--enable-pubsub-experiment" ]
 
-  ipfs_node2:
-    image: ipfs/kubo:latest
-    container_name: ipfs_node2
-    restart: unless-stopped
-    networks:
-      - ipfs_network
-    volumes:
-      - ./ipfs_data/node2:/data/ipfs
-    environment:
-      - IPFS_PROFILE=server
-    command: [ "daemon", "--enable-pubsub-experiment" ]
+## Cluster PEER 0 
 
-  ipfs_node3:
-    image: ipfs/kubo:latest
-    container_name: ipfs_node3
-    restart: unless-stopped
+  ipfs0:
+    container_name: ipfs0
+    image: ipfs/kubo:release
     networks:
-      - ipfs_network
+      - ipfs_private_network
     volumes:
-      - ./ipfs_data/node3:/data/ipfs
+      - ./compose/ipfs0:/data/ipfs
+
+  cluster0:
+    container_name: cluster0
+    image: ipfs/ipfs-cluster:latest
+    networks:
+      - ipfs_private_network
+    depends_on:
+      - ipfs0
     environment:
-      - IPFS_PROFILE=server
-    command: [ "daemon", "--enable-pubsub-experiment" ]
+      CLUSTER_PEERNAME: cluster0
+      CLUSTER_SECRET: '9ecada1f6cff55ccc505a294373265da363d1b959b5b9f444afdcb8e55bf51ac' # From shell variable if set
+      CLUSTER_IPFSHTTP_NODEMULTIADDRESS: /dns4/ipfs0/tcp/5001
+      CLUSTER_CRDT_TRUSTEDPEERS: '*' # Trust all peers in Cluster
+      CLUSTER_RESTAPI_HTTPLISTENMULTIADDRESS: /ip4/0.0.0.0/tcp/9094 # Expose API
+      CLUSTER_MONITORPINGINTERVAL: 2s # Speed up peer discovery
+    ports:
+          - "9094:9094" # Open API port
+          - "9095:9095" # Cluster IPFS Proxy endpoint
+    volumes:
+      - ./compose/cluster0:/data/ipfs-cluster
+
+## Cluster PEER 1 
+
+  ipfs1:
+    container_name: ipfs1
+    image: ipfs/kubo:release
+    networks:
+      - ipfs_private_network
+    volumes:
+      - ./compose/ipfs1:/data/ipfs
+
+  cluster1:
+    container_name: cluster1
+    image: ipfs/ipfs-cluster:latest
+    networks:
+      - ipfs_private_network
+    depends_on:
+      - ipfs1
+    environment:
+      CLUSTER_PEERNAME: cluster1
+      CLUSTER_SECRET: '9ecada1f6cff55ccc505a294373265da363d1b959b5b9f444afdcb8e55bf51ac'
+      CLUSTER_IPFSHTTP_NODEMULTIADDRESS: /dns4/ipfs1/tcp/5001
+      CLUSTER_CRDT_TRUSTEDPEERS: '*'
+      CLUSTER_RESTAPI_HTTPLISTENMULTIADDRESS: /ip4/0.0.0.0/tcp/9094 # Expose API
+      CLUSTER_MONITORPINGINTERVAL: 2s # Speed up peer discovery
+    ports:
+          - "9094:9094" # Open API port
+          - "9095:9095" # Cluster IPFS Proxy endpoint    
+    volumes:
+      - ./compose/cluster1:/data/ipfs-cluster
+
+## Cluster PEER 2
+
+  ipfs2:
+    container_name: ipfs2
+    image: ipfs/kubo:release
+    networks:
+      - ipfs_private_network
+    volumes:
+      - ./compose/ipfs2:/data/ipfs
+
+  cluster2:
+    container_name: cluster2
+    image: ipfs/ipfs-cluster:latest
+    networks:
+      - ipfs_private_network
+    depends_on:
+      - ipfs2
+    environment:
+      CLUSTER_PEERNAME: cluster2
+      CLUSTER_SECRET: '9ecada1f6cff55ccc505a294373265da363d1b959b5b9f444afdcb8e55bf51ac'
+      CLUSTER_IPFSHTTP_NODEMULTIADDRESS: /dns4/ipfs2/tcp/5001
+      CLUSTER_CRDT_TRUSTEDPEERS: '*'
+      CLUSTER_RESTAPI_HTTPLISTENMULTIADDRESS: /ip4/0.0.0.0/tcp/9094 # Expose API
+      CLUSTER_MONITORPINGINTERVAL: 2s # Speed up peer discovery
+    ports:
+          - "9094:9094" # Open API port
+          - "9095:9095" # Cluster IPFS Proxy endpoint
+    volumes:
+      - ./compose/cluster2:/data/ipfs-cluster
 
   nginx:
     image: nginx:latest
     container_name: ipfs_nginx
     restart: unless-stopped
     depends_on:
-      - ipfs_node1
-      - ipfs_node2
-      - ipfs_node3
+      - cluster0
       - auth_service
     networks:
-      - ipfs_network
-      - external_network
+      - ipfs_private_network
+      - ipfs_public_network
     ports:
-      - "80:80"
+      - "9094:80"
       - "443:443"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf
@@ -73,4 +119,10 @@ services:
     volumes:
       - ./jwt_secret.key:/app/jwt_secret.key:ro
     networks:
-      - ipfs_network
+      - ipfs_private_network 
+networks:
+  ipfs_private_network:  # Definición de la red
+    driver: bridge  
+    internal: true
+  ipfs_public_network:  # Definición de la red
+    driver: bridge  

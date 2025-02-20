@@ -1,0 +1,7 @@
+Hola,
+
+Esto es un archivo confidencial para hacer un test de IPFS.
+Agregamos algunos caracteres.
+
+Saludos.
+
